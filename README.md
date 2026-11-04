@@ -38,7 +38,7 @@ python scripts/validate_snapshot.py
 pytest
 ```
 
-更完整說明請見 [Architecture](docs/ARCHITECTURE.md)、[Data Sources](docs/DATA_SOURCES.md)、[Deployment](docs/DEPLOYMENT.md)。
+更完整說明請見 [交接手冊](docs/HANDOFF.md)、[Architecture](docs/ARCHITECTURE.md)、[Data Sources](docs/DATA_SOURCES.md)、[Deployment](docs/DEPLOYMENT.md)。
 
 ## 建立自己的 GitHub repository
 

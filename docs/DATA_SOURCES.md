@@ -12,6 +12,16 @@
 
 The connector stores no protected listing photos. The source's image-reference field is retained as provenance metadata only and is not rendered.
 
+## Integrated: National Property Administration tender results dataset 13144
+
+- Dataset: 國有非公用財產標售不動產開標結果
+- Registry: <https://data.gov.tw/dataset/13144>
+- Official JSON resource: `https://esvc.fnp.gov.tw/openDataSource?area=all&format=json&source=CftResult`
+- License: 政府資料開放授權條款第 1 版
+- Snapshot: 13,335 tender-result rows from 896 official bulletins
+
+One normalized record represents one tender number. If a tender number contains several land or building entries, their provenance is retained together instead of duplicating the same reserve and awarded price across several property rows. `reserve_price` and `final_price` remain separate; an empty awarded price is not treated as a sale.
+
 ## Integrated: Administrative Enforcement Agency dataset 177351
 
 - Dataset: 115年至第一季止所屬分署已拍定不動產

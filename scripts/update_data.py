@@ -9,10 +9,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.connectors.fnp import fetch as fetch_fnp
+from scripts.connectors.fnp_results import fetch as fetch_fnp_results
 from scripts.connectors.moj_enforcement import fetch as fetch_moj
 from scripts.connectors.bot import fetch as fetch_bot
 from scripts.connectors.taipei import fetch as fetch_taipei
 from scripts.normalize.fnp import normalize as normalize_fnp
+from scripts.normalize.fnp_results import normalize as normalize_fnp_results
 from scripts.normalize.moj_enforcement import normalize as normalize_moj
 from scripts.normalize.bot import normalize as normalize_bot
 from scripts.normalize.taipei import normalize as normalize_taipei
@@ -21,6 +23,7 @@ from scripts.validate.models import Property
 
 SOURCES = (
     ("fnp-9655", fetch_fnp, normalize_fnp),
+    ("fnp-results-13144", fetch_fnp_results, normalize_fnp_results),
     ("moj-enforcement-177351", fetch_moj, normalize_moj),
     ("bot-37335", fetch_bot, normalize_bot),
     ("taipei-finance-121364", fetch_taipei, normalize_taipei),
@@ -28,6 +31,7 @@ SOURCES = (
 
 SAVED_INPUT_KEYS = {
     "fnp-9655": "fnp",
+    "fnp-results-13144": "fnp_results",
     "moj-enforcement-177351": "moj",
     "bot-37335": "bot",
     "taipei-finance-121364": "taipei",
@@ -37,10 +41,11 @@ def read_json(path: Path) -> dict | None:
     try: return json.loads(path.read_text(encoding="utf-8-sig"))
     except (FileNotFoundError, json.JSONDecodeError): return None
 
-def atomic_json(path: Path, payload: dict) -> None:
+def atomic_json(path: Path, payload: dict, *, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":")) if compact else json.dumps(payload, ensure_ascii=False, indent=2)
+    temporary.write_text(serialized, encoding="utf-8")
     temporary.replace(path)
 
 def previous_records(output: Path) -> list[dict]:
@@ -55,7 +60,7 @@ def sanitize_error(error: Exception) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, help="Saved object with fnp/moj/bot/taipei arrays")
+    parser.add_argument("--input", type=Path, help="Saved object with fnp/fnp_results/moj/bot/taipei arrays")
     parser.add_argument("--output", type=Path, default=ROOT / "public/data/properties.json")
     parser.add_argument("--status-output", type=Path)
     args = parser.parse_args()
@@ -95,11 +100,11 @@ def main() -> int:
     ids = [record["id"] for record in valid]
     if len(ids) != len(set(ids)): raise ValueError("Duplicate normalized IDs detected")
     overall = "healthy" if success_count == len(SOURCES) else "degraded" if success_count else "stale"
-    payload = {"schema_version":"2.2.0", "generated_at":synced_at.isoformat(), "source_attribution":"財政部國有財產署、法務部行政執行署、臺灣銀行、臺北市政府財政局（政府資料開放授權條款第1版）", "records":valid}
+    payload = {"schema_version":"2.3.0", "generated_at":synced_at.isoformat(), "source_attribution":"財政部國有財產署、法務部行政執行署、臺灣銀行、臺北市政府財政局（政府資料開放授權條款第1版）", "records":valid}
     history = list(old_status.get("history", []))[-89:]
     history.append({"at":synced_at.isoformat(), "overall":overall, "records":len(valid), "sources":{key:value["status"] for key, value in source_status.items()}})
     status = {"schema_version":"1.0.0", "generated_at":synced_at.isoformat(), "overall":overall, "sources":source_status, "history":history}
-    atomic_json(args.output, payload); atomic_json(status_output, status)
+    atomic_json(args.output, payload, compact=True); atomic_json(status_output, status)
     print(json.dumps({"records":len(valid), "sources_successful":success_count, "overall":overall, "output":str(args.output), "status_output":str(status_output)}, ensure_ascii=False))
     return 0
 

@@ -3,7 +3,7 @@
 The MVP is a static, low-cost pipeline suitable for GitHub Pages.
 
 ```text
-Four licensed official sources
+Five licensed official sources
   -> source-specific Python connectors
   -> normalization + Pydantic validation
   -> versioned JSON snapshot

@@ -16,7 +16,7 @@ export default function Layout() {
     <aside className="sidebar">
       <NavLink className="brand" to="/" aria-label="回到首頁"><span className="brand-mark"><Building2 /></span><span><strong>地產透鏡</strong><small>Realty Lens Taiwan</small></span></NavLink>
       <nav aria-label="主要導覽">{links.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === '/'}><Icon size={19}/><span>{label}</span></NavLink>)}</nav>
-      <div className="sidebar-note"><span className="pulse"/>多來源同步架構<small>已驗證 4 個官方來源</small></div>
+      <div className="sidebar-note"><span className="pulse"/>多來源同步架構<small>已驗證 5 個官方來源</small></div>
     </aside>
     <div className="main-column">
       <header className="topbar"><div><span className="eyebrow">TAIWAN REAL ESTATE INTELLIGENCE</span></div><button className="icon-button" onClick={toggleTheme} aria-label="切換深淺色模式">{theme === 'dark' ? <Sun/> : <Moon/>}</button></header>

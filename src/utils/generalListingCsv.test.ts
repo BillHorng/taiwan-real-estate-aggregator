@@ -8,12 +8,14 @@ describe('general listing CSV', () => {
     const [item] = parseGeneralListingCsv(csv)
     expect(item.title).toBe('三房,有車位')
     expect(item.total_price).toBe(12_800_000)
+    expect(item.property_category).toBe('building')
   })
 
   it('exports a spreadsheet-safe UTF-8 CSV that can be imported again', () => {
-    const item = { source_name: '來源', source_url: 'https://example.com/1', title: '候選 A', county: '臺北市', district: '中山區', address: null, total_price: 10_000_000, building_area_ping: 25, building_age: 10, rooms: 2, bathrooms: 1, parking: '無' } as Property
+    const item = { source_name: '來源', source_url: 'https://example.com/1', title: '候選 A', county: '臺北市', district: '中山區', address: null, property_category: 'mixed', building_type: '透天厝', total_price: 10_000_000, building_area_ping: 25, land_area_ping: 18, building_age: 10, floor: '整棟', rooms: 2, bathrooms: 1, parking: '無' } as Property
     const csv = exportGeneralListingsCsv([item])
     expect(csv.startsWith('\uFEFF')).toBe(true)
     expect(parseGeneralListingCsv(csv)[0].total_price).toBe(10_000_000)
+    expect(parseGeneralListingCsv(csv)[0]).toMatchObject({ property_category: 'mixed', building_type: '透天厝', land_area_ping: 18, floor: '整棟' })
   })
 })

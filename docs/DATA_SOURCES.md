@@ -67,7 +67,7 @@ Only the ten rows explicitly marked `招標中` are treated as upcoming. Rows ma
 
 The connector reads the archive manifest and every county main CSV, skips the embedded English-label row, converts ROC dates and square metres, and validates records with a dedicated `RealPriceRecord` model. The generated `real-price.json` is intentionally separate from purchasable `Property` records: reported transaction price is historical evidence, not an asking price or available listing. The first verified local snapshot contains 8,838 records across 21 counties for the official period published on 2026-11-01.
 
-Historical trends use MOI dataset 18703, `非本期發布之實價批次資料`, also licensed under the Open Government Data License 1.0. The pipeline reads only the completed-building sale main files from each official quarterly archive. It does not commit the large source ZIPs or historical transaction rows. Instead, `real-price-history.json` contains validated aggregates at national, county, and district levels by building type. The current local series covers 2025 Q1 through 2026 Q3: approximately 542,000 valid sale rows were reduced to 9,562 trend points.
+Historical trends use MOI dataset 18703, `非本期發布之實價批次資料`, also licensed under the Open Government Data License 1.0. The pipeline reads only the completed-building sale main files from each official quarterly archive. It does not commit the large source ZIPs or historical transaction rows. Instead, `real-price-history.json` contains validated aggregates at national, county, and district levels by building type. The current local series covers 2024 Q1 through 2026 Q3: 11 official quarters were reduced to 15,122 validated trend points.
 
 ## Integrated: NLSC township boundaries (dataset 7441)
 
@@ -76,7 +76,7 @@ Historical trends use MOI dataset 18703, `非本期發布之實價批次資料`,
 - Download: official `鄉鎮市區界線(TWD97經緯度).zip`
 - License: 政府資料開放授權條款第 1 版
 - Output: `public/data/admin-centroids.json` (368 administrative areas)
-- Map tiles: NLSC WMTS `EMAP` with optional `TOWN` overlay, requested directly by the browser and not bulk-cached
+- Interactive map: Google Maps JavaScript API, loaded directly by the browser with a restricted browser key; NLSC data is used only for the committed district representative coordinates
 
 The connector selects the nationwide TOWN shapefile (the archive also contains a one-record correction layer), computes polygon centroids, validates Taiwan coordinate bounds and writes only district-level representative points. These points are not property coordinates and are always labelled accordingly in the UI.
 

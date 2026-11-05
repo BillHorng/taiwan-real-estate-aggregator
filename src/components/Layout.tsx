@@ -5,7 +5,7 @@ import { useTheme } from '../hooks/useTheme'
 const links = [
   ['/', '總覽', Home],
   ['/general-listings', '一般房源', HousePlus],
-  ['/map', '地圖搜尋', Map],
+  ['/map', 'Google Maps', Map],
   ['/real-price', '成交行情', BarChart3],
   ['/compare', '物件比較', GitCompareArrows],
   ['/favorites', '我的收藏', Heart],

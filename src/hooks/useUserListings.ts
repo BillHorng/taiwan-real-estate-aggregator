@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Property } from '../types/property'
+import type { Property, PropertyCategory } from '../types/property'
 
 const STORAGE_KEY = 'trea-general-listings-v1'
 const EVENT_NAME = 'trea-general-listings-changed'
@@ -11,15 +11,21 @@ export type UserListingInput = {
   county: string
   district: string
   address: string
+  property_category: PropertyCategory
+  building_type: string
   total_price: number | null
   building_area_ping: number | null
+  land_area_ping: number | null
   building_age: number | null
+  floor: string
   rooms: number | null
   bathrooms: number | null
   parking: string
+  availability: 'active' | 'ended' | 'unknown'
 }
 
 export type ImportResult = { added: number, duplicates: number, errors: string[] }
+export type RefreshResult = { added: number, matched: number, priceChanges: number, statusChanges: number, missingUnchanged: number, errors: string[] }
 
 export function normalizeListingUrl(value: string) {
   const url = new URL(value.trim())
@@ -55,18 +61,19 @@ function buildListing(input: UserListingInput, existing?: Property): Property {
   const priceHistory = priceChanged
     ? [...previousHistory, { price: input.total_price, recorded_at: now }]
     : oldHistory.length ? oldHistory : input.total_price == null ? [] : [{ price: input.total_price, recorded_at: now }]
+  const unitArea = input.property_category === 'land' ? input.land_area_ping : input.building_area_ping
   return {
     id: existing?.id ?? makeId(), source_id: 'user-entry', source_name: input.source_name.trim(), source_url: sourceUrl, external_listing_id: '',
-    title: input.title.trim(), description: null, property_category: 'building', transaction_type: 'sale',
+    title: input.title.trim(), description: null, property_category: input.property_category, building_type: input.building_type.trim() || null, transaction_type: 'sale',
     county: input.county.trim() || null, district: input.district.trim() || null, address: input.address.trim() || null,
     address_precision: input.address.trim() ? 'unknown' : 'district', latitude: null, longitude: null, location_precision: 'none',
-    total_price: input.total_price, unit_price: input.total_price && input.building_area_ping ? input.total_price / input.building_area_ping : null,
-    building_area_ping: input.building_area_ping, land_area_ping: null, building_age: input.building_age, floor: null,
+    total_price: input.total_price, unit_price: input.total_price && unitArea ? input.total_price / unitArea : null,
+    building_area_ping: input.building_area_ping, land_area_ping: input.land_area_ping, building_age: input.building_age, floor: input.floor.trim() || null,
     rooms: input.rooms, bathrooms: input.bathrooms, parking: input.parking.trim() || null,
     auction_type: null, auction_round: null, auction_date: null, reserve_price: null, final_price: null, deposit: null,
-    case_number: null, ownership_share: null, handover_status: null, listing_status: 'unknown',
+    case_number: null, ownership_share: null, handover_status: null, listing_status: input.availability === 'ended' ? 'ended' : 'unknown',
     first_seen_at: existing?.first_seen_at ?? now, last_seen_at: now, last_verified_at: now, source_updated_at: null, data_quality_score: listingCompleteness(input) / 100,
-    source_details: { agency: '使用者自行輸入', input_mode: 'browser_local' }, price_history: priceHistory,
+    source_details: { agency: '使用者自行輸入', input_mode: 'browser_local', unit_price_basis: input.property_category === 'land' ? 'land_area_ping' : 'building_area_ping', availability: input.availability }, price_history: priceHistory,
   }
 }
 
@@ -78,7 +85,7 @@ function assertUniqueUrl(listings: Property[], sourceUrl: string, exceptId?: str
 }
 
 export function listingCompleteness(input: UserListingInput | Property) {
-  const fields = ['source_name', 'source_url', 'title', 'county', 'district', 'total_price', 'building_area_ping', 'building_age', 'rooms', 'bathrooms', 'parking'] as const
+  const fields = ['source_name', 'source_url', 'title', 'county', 'district', 'property_category', 'building_type', 'total_price', 'building_area_ping', 'building_age', 'floor', 'rooms', 'bathrooms', 'parking'] as const
   const filled = fields.filter(key => input[key] !== null && input[key] !== '' && input[key] !== undefined).length
   return Math.round(filled / fields.length * 100)
 }
@@ -86,9 +93,32 @@ export function listingCompleteness(input: UserListingInput | Property) {
 export function propertyToInput(item: Property): UserListingInput {
   return {
     source_name: item.source_name, source_url: item.source_url, title: item.title, county: item.county ?? '', district: item.district ?? '',
-    address: item.address ?? '', total_price: item.total_price, building_area_ping: item.building_area_ping, building_age: item.building_age,
-    rooms: item.rooms, bathrooms: item.bathrooms, parking: item.parking ?? '',
+    address: item.address ?? '', property_category: item.property_category, building_type: item.building_type ?? '', total_price: item.total_price,
+    building_area_ping: item.building_area_ping, land_area_ping: item.land_area_ping, building_age: item.building_age, floor: item.floor ?? '',
+    rooms: item.rooms, bathrooms: item.bathrooms, parking: item.parking ?? '', availability: (item.source_details?.availability as UserListingInput['availability']) ?? (item.listing_status === 'ended' ? 'ended' : 'unknown'),
   }
+}
+
+export function applyListingRefresh(current: Property[], inputs: UserListingInput[]) {
+  const next = [...current]
+  const seen = new Set<string>()
+  const result: RefreshResult = { added: 0, matched: 0, priceChanges: 0, statusChanges: 0, missingUnchanged: 0, errors: [] }
+  inputs.forEach((input, index) => {
+    try {
+      const url = normalizeListingUrl(input.source_url)
+      seen.add(url)
+      const existingIndex = next.findIndex(item => normalizeListingUrl(item.source_url) === url)
+      if (existingIndex < 0) { next.unshift(buildListing(input)); result.added += 1; return }
+      const existing = next[existingIndex]
+      const oldAvailability = existing.source_details?.availability ?? (existing.listing_status === 'ended' ? 'ended' : 'unknown')
+      if (existing.total_price !== input.total_price) result.priceChanges += 1
+      if (oldAvailability !== input.availability) result.statusChanges += 1
+      next[existingIndex] = buildListing(input, existing)
+      result.matched += 1
+    } catch (error) { result.errors.push(`第 ${index + 2} 列：${error instanceof Error ? error.message : String(error)}`) }
+  })
+  result.missingUnchanged = current.filter(item => !seen.has(normalizeListingUrl(item.source_url))).length
+  return { records: next, result }
 }
 
 export function useUserListings() {
@@ -136,7 +166,14 @@ export function useUserListings() {
     return result
   }
 
+  const refreshListings = (inputs: UserListingInput[]): RefreshResult => {
+    const current = read()
+    const { records, result } = applyListingRefresh(current, inputs)
+    if (result.added || result.matched) write(records)
+    return result
+  }
+
   const removeListing = (id: string) => write(read().filter(item => item.id !== id))
   const clearListings = () => write([])
-  return { listings, addListing, updateListing, importListings, removeListing, clearListings }
+  return { listings, addListing, updateListing, importListings, refreshListings, removeListing, clearListings }
 }

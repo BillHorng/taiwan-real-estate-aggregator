@@ -28,3 +28,7 @@ export function groupListingsByDistrict(listings: Property[], centroids: AdminCe
   })
   return { groups: [...groups.values()], unmatched }
 }
+
+export function rectangleBounds(first: [number, number], second: [number, number]): [number, number, number, number] {
+  return [Math.min(first[0], second[0]), Math.min(first[1], second[1]), Math.max(first[0], second[0]), Math.max(first[1], second[1])]
+}

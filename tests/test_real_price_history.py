@@ -13,5 +13,7 @@ def test_builds_national_county_and_district_medians():
     assert any(point["county"] == "全台" for point in points)
 
 def test_season_range_ends_at_previous_quarter():
-    assert seasons_through_previous_quarter(datetime(2026, 11, 5, tzinfo=timezone.utc))[-1] == "115S3"
+    seasons = seasons_through_previous_quarter(datetime(2026, 11, 5, tzinfo=timezone.utc))
+    assert seasons[0] == "113S1"
+    assert seasons[-1] == "115S3"
     assert label("114S4") == "2025 Q4"

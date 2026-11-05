@@ -66,17 +66,17 @@ The first authorized partner connector should be implemented against a retained 
 - 有巢氏房屋
 - 太平洋房屋
 
-All nine remain `official_link_only` as of 2026-11-04.
+All nine remain `official_link_only` as of 2026-11-05.
 
 ## Browser-local CSV contract
 
-The comparison workspace supports local CSV import and export without treating the file as a licensed partner feed. The required header is:
+The comparison workspace supports local CSV import and export without treating the file as a licensed partner feed. The current export header is:
 
 ```text
-source_name,source_url,title,county,district,address,total_price_wan,building_area_ping,building_age,rooms,bathrooms,parking
+source_name,source_url,title,county,district,address,property_category,building_type,total_price_wan,building_area_ping,land_area_ping,building_age,floor,rooms,bathrooms,parking,availability
 ```
 
-`total_price_wan` is expressed in ten-thousand New Taiwan dollars and is converted to TWD internally. Source URL, source name, and title are required. Imported URLs must use HTTP(S), and normalized duplicates are skipped. These browser-local records are never added to the public official-data snapshot.
+`total_price_wan` is expressed in ten-thousand New Taiwan dollars and is converted to TWD internally. `property_category` accepts `building`, `land`, `mixed`, or `unknown`; `availability` accepts `active`, `ended`, or `unknown`. Source URL, source name, and title are required. For backwards compatibility, files using the previous 12-column header are still accepted and default to `building` and `unknown`; new columns are optional during import. Imported URLs must use HTTP(S), and normalized duplicates are skipped. The snapshot-refresh action matches normalized URLs, retains price history, and never marks a missing row as ended. These browser-local records are never added to the public official-data snapshot.
 
 ## Authorized feed validator
 

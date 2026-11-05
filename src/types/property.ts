@@ -10,6 +10,7 @@ export interface Property {
   title: string
   description: string | null
   property_category: PropertyCategory
+  building_type?: string | null
   transaction_type: 'government_sale' | 'auction' | 'sale'
   county: string | null
   district: string | null
@@ -106,9 +107,29 @@ export interface Filters {
   district: string
   minPrice: string
   maxPrice: string
+  minUnitPrice: string
+  maxUnitPrice: string
+  minBuildingArea: string
+  maxBuildingArea: string
+  minLandArea: string
+  maxLandArea: string
+  maxBuildingAge: string
+  floor: string
+  minRooms: string
+  minBathrooms: string
+  parking: string
   category: string
   status: string
-  sort: 'auction_asc' | 'newest' | 'price_asc' | 'price_desc' | 'area_desc'
+  agency: string
+  auctionRound: string
+  minDeposit: string
+  maxDeposit: string
+  handover: string
+  ownershipShare: string
+  useZone: string
+  auctionDateFrom: string
+  auctionDateTo: string
+  sort: 'auction_asc' | 'newest' | 'price_asc' | 'price_desc' | 'unit_asc' | 'land_area_desc' | 'building_area_desc'
 }
 
 export interface RealPriceRecord {

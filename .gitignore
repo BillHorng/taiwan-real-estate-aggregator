@@ -5,9 +5,12 @@ __pycache__/
 .pytest_cache/
 *.pyc
 .env
-playwright-report/
-test-results/
+.env.local
+.env.*.local
 *.tsbuildinfo
 .tmp-lvr-inspect/
 .tmp-lvr-history/
 .tmp-admin-boundaries/
+test-results/
+playwright-report/
+blob-report/

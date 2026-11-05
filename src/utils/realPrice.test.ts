@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { RealPriceRecord } from '../types/property'
-import { annualTrend, emptyRealPriceFilters, filterRealPrice, median, realPriceSummary, trendForLocation } from './realPrice'
+import type { Property, RealPriceRecord } from '../types/property'
+import { annualTrend, emptyRealPriceFilters, filterRealPrice, median, realPriceSummary, similarTransactionsForListing, trendForLocation } from './realPrice'
 
 const record = { id:'1', county:'臺北市', district:'大安區', building_type:'住宅大樓', building_area_ping:30, unit_price_ping:800000, total_price:24000000, transaction_target:'房地(土地+建物)' } as RealPriceRecord
 describe('real-price analytics', () => {
@@ -17,5 +17,14 @@ describe('real-price analytics', () => {
     const trend = trendForLocation(points, { county:'臺北市', district:'大安區', buildingType:'' })
     expect(trend).toHaveLength(2)
     expect(annualTrend(trend)[0]).toMatchObject({ year:'2025', count:40, quarters:2, weightedQuarterMedian:950_000 })
+  })
+  it('ranks similar transactions by location, area, type, age and rooms', () => {
+    const listing = { county:'臺北市', district:'大安區', building_area_ping:30, building_type:'住宅大樓', building_age:10, rooms:3 } as Property
+    const close = { ...record, building_area_ping:31, building_type:'住宅大樓(11層含以上有電梯)', building_age:11, rooms:3 } as RealPriceRecord
+    const far = { ...record, id:'2', building_area_ping:50 } as RealPriceRecord
+    const matches = similarTransactionsForListing(listing, [far, close])
+    expect(matches).toHaveLength(1)
+    expect(matches[0].record.id).toBe(close.id)
+    expect(matches[0].matchBasis).toContain('建物型態相近')
   })
 })

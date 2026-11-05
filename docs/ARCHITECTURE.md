@@ -29,7 +29,7 @@ MOI quarterly historical CSV ZIPs
 
 - `HashRouter` avoids refresh 404s on GitHub Pages without a server rewrite rule.
 - The MVP uses a small hand-authored CSS design system instead of Tailwind. This removes a build-time styling dependency while keeping dark/light and responsive layouts; Tailwind can be introduced later without changing the data layer.
-- Leaflet is deferred because the integrated source supplies land-parcel text but no verified coordinates. Rendering invented or casually geocoded markers would violate the location-precision rule.
+- Google Maps is loaded only on the map route and only when a browser API key is configured. User listings are joined to 368 NLSC administrative-area centroids; the UI labels them as district representative points and never presents them as building coordinates.
 - Each source updates independently. A failed source retains its previous validated rows, records a `stale` or `failed` health state, and cannot erase the other sources. JSON output is replaced atomically only after validation.
 - Missing coordinates remain `null`; the MVP does not render approximate markers.
 - Search is client-side and paginated at 24 cards. Move to a search backend only when data volume makes the static payload unsuitable.
@@ -44,10 +44,12 @@ MOI quarterly historical CSV ZIPs
 - General-listing favorites and comparisons resolve LocalStorage candidates first. The 23 MiB government snapshot is loaded only when the selected IDs actually include official records.
 - Duplicate detection only flags conservative candidates, with a confidence score and explicit matching basis. It never merges or removes official rows.
 - Comparison selections are browser-local, limited to four records, and keep reserve and final prices in separate rows.
-- A restrictive meta Content Security Policy is included because GitHub Pages cannot set repository-specific response headers. A reverse proxy or custom host should set CSP as an HTTP header for stronger enforcement.
+- A meta Content Security Policy is included because GitHub Pages cannot set repository-specific response headers. Google Maps requires Google-host allowlists and inline/eval compatibility in this static setup; a nonce-based CSP on a custom host is the stronger production option.
 - Real-price registrations use a separate `RealPriceRecord` schema and lazy-loaded `real-price.json`. They are never mixed into available listings. `/real-price` reports sample counts and medians for explicit filters, and compares browser-local asking price with the same county/district transaction median while disclosing the period and uncertainty.
-- `update_real_price_history.py` begins at 2025 Q1 and downloads only official completed quarters absent from the committed aggregate. This keeps recurring Actions inexpensive. Quarterly medians are exact for each source archive; the yearly display is a sample-count-weighted quarterly-median indicator, not an exact annual median.
+- `update_real_price_history.py` begins at 2024 Q1 and downloads only official completed quarters absent from the committed aggregate. This keeps recurring Actions inexpensive. Quarterly medians are exact for each source archive; the yearly display is a sample-count-weighted quarterly-median indicator, not an exact annual median.
 
 ## Future boundaries
 
-Leaflet district-level maps, current and seven-quarter regional real-price analytics, comparison, and CSV export are client-side features. The map joins user listings to 368 NLSC administrative-area centroids and never presents those points as building coordinates. Exact-address geocoding, additional current-auction connectors, and longer-horizon or model-based analytics remain Phase 2/3 work. A backend becomes appropriate for authentication, subscriptions, private data, high-volume search, or notification delivery.
+Google Maps district-level maps, current and historical regional real-price analytics, comparison, and CSV export are client-side features. The map joins user listings to 368 NLSC administrative-area centroids and never presents those points as building coordinates. Exact-address geocoding, additional current-auction connectors, and longer-horizon or model-based analytics remain Phase 2/3 work. A backend becomes appropriate for authentication, subscriptions, private data, high-volume search, or notification delivery.
+
+Browser-local general listings also run a conservative duplicate-candidate pass. Records are first bucketed by normalized county and district, then scored using normalized address, area, asking price, floor, building type, and room count. A result is only a review hint: source records remain separate, no field is overwritten, and the UI exposes the evidence behind each score.

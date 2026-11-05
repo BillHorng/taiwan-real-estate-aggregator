@@ -1,9 +1,10 @@
-import { ArrowLeft, ExternalLink, GitCompareArrows, Heart, MapPin, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ExternalLink, GitCompareArrows, Heart, MapPin, ShieldCheck } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useCompare } from '../hooks/useCompare'
 import { useFavorites } from '../hooks/useFavorites'
 import { listingCompleteness, useUserListings } from '../hooks/useUserListings'
 import { formatCurrency, formatPing } from '../utils/property'
+import { findGeneralListingDuplicateCandidates } from '../utils/generalListingDuplicates'
 
 export default function GeneralListingDetail() {
   const { id } = useParams()
@@ -16,11 +17,16 @@ export default function GeneralListingDetail() {
 
   const favorite = favorites.includes(item.id)
   const selected = compareIds.includes(item.id)
+  const duplicateCandidates = findGeneralListingDuplicateCandidates(listings).filter(candidate => candidate.leftId === item.id || candidate.rightId === item.id)
   const location = [item.county, item.district, item.address].filter(Boolean).join(' ') || '地點未填寫'
   const details = [
+    ['物件大類', ({ building: '建物', land: '土地', mixed: '房地', unknown: '未分類' }[item.property_category])],
+    ['房屋類型', item.building_type || '未提供'],
     ['建物面積', formatPing(item.building_area_ping)],
+    ['土地面積', formatPing(item.land_area_ping)],
     ['每坪單價', formatCurrency(item.unit_price)],
     ['屋齡', item.building_age == null ? '未提供' : `${item.building_age} 年`],
+    ['樓層', item.floor || '未提供'],
     ['房間', item.rooms == null ? '未提供' : `${item.rooms} 房`],
     ['衛浴', item.bathrooms == null ? '未提供' : `${item.bathrooms} 衛`],
     ['車位', item.parking || '未提供'],
@@ -33,7 +39,8 @@ export default function GeneralListingDetail() {
     <Link className="back-link" to="/general-listings"><ArrowLeft/>返回一般房源搜尋</Link>
     <section className="detail-header general-detail-header"><div><div className="card-meta"><span className="source-pill">{item.source_name}</span><span className="local-pill">瀏覽器本機資料</span></div><h1>{item.title}</h1><p><MapPin size={17}/>{location}</p></div><div className="detail-actions"><button className={favorite ? 'favorite active large' : 'favorite large'} onClick={() => toggleFavorite(item.id)}><Heart fill={favorite ? 'currentColor' : 'none'}/>{favorite ? '已收藏' : '加入收藏'}</button><button className={selected ? 'compare-button active detail-compare' : 'compare-button detail-compare'} disabled={!selected && isFull} onClick={() => toggleCompare(item.id)}><GitCompareArrows/>{selected ? '已加入比較' : '加入比較'}</button></div></section>
     <div className="detail-layout"><div>
-      <section className="price-panel"><div><small>一般房源開價（非成交價）</small><strong>{formatCurrency(item.total_price)}</strong></div><div><small>每坪開價</small><strong>{formatCurrency(item.unit_price)}</strong></div></section>
+      <section className="price-panel"><div><small>一般房源開價（非成交價）</small><strong>{formatCurrency(item.total_price)}</strong></div><div><small>每{item.property_category === 'land' ? '土地坪' : '建坪'}開價</small><strong>{formatCurrency(item.unit_price)}</strong></div></section>
+      {duplicateCandidates.length > 0 && <section className="duplicate-detail-warning"><AlertTriangle/><div><strong>這筆房源有 {duplicateCandidates.length} 筆疑似跨來源重複候選</strong><p>這是保守式提示，不代表已確認為同一物件，也不會合併資料。</p><ul>{duplicateCandidates.map(candidate => { const otherId = candidate.leftId === item.id ? candidate.rightId : candidate.leftId; const other = listings.find(listing => listing.id === otherId); return other ? <li key={otherId}><Link to={`/general-listings/${otherId}`}>{other.source_name}：{other.title}</Link><span>{Math.round(candidate.confidence * 100)}% · {candidate.matchBasis.join('、')}</span></li> : null })}</ul></div></section>}
       <section className="content-panel"><h2>房源資訊</h2><div className="detail-grid">{details.map(([label, value]) => <div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div></section>
       <section className="content-panel"><h2>手動價格歷程</h2>{history.length ? <ol className="price-history">{history.map((entry, index) => <li key={`${entry.recorded_at}-${index}`}><div><strong>{formatCurrency(entry.price)}</strong><small>{new Date(entry.recorded_at).toLocaleString('zh-TW')}</small></div>{index === history.length - 1 ? <span>最初記錄</span> : index === 0 ? <span className="current">目前開價</span> : null}</li>)}</ol> : <p className="description">尚未記錄價格。編輯房源並填入開價後，系統會在此保存本機價格歷程。</p>}</section>
       <section className="local-data-notice detail-notice"><ShieldCheck/><div><strong>資料性質與查核方式</strong><p>此筆資料由你在目前瀏覽器自行輸入或匯入，平台未向原始網站自動擷取，也未驗證物件是否仍在售。價格為房源開價，不是實際成交價；請以原始頁面及房仲提供的最新資訊為準。</p></div></section>

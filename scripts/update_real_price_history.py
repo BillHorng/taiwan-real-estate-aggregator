@@ -13,7 +13,7 @@ from scripts.connectors.moi_real_price import download_season, read_zip
 from scripts.normalize.moi_real_price import normalize
 from scripts.validate.models import RealPriceRecord
 
-START_YEAR, START_QUARTER = 2025, 1
+START_YEAR, START_QUARTER = 2024, 1
 
 def seasons_through_previous_quarter(now: datetime) -> list[str]:
     year, quarter = now.year, (now.month - 1) // 3 + 1

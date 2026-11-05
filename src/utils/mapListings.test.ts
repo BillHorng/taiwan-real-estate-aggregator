@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AdminCentroid, Property } from '../types/property'
-import { groupListingsByDistrict, normalizePlaceName } from './mapListings'
+import { groupListingsByDistrict, normalizePlaceName, rectangleBounds } from './mapListings'
 
 const centroid: AdminCentroid = {
   source_id: 'nlsc-town-boundaries', town_code: '6300100', county: '臺北市', district: '松山區',
@@ -21,5 +21,8 @@ describe('map listing grouping', () => {
     const result = groupListingsByDistrict([{ ...listing, district: null }], [centroid])
     expect(result.groups).toHaveLength(0)
     expect(result.unmatched).toBe(1)
+  })
+  it('normalizes two map clicks into south-west and north-east bounds', () => {
+    expect(rectangleBounds([25.1, 121.7], [24.9, 121.3])).toEqual([24.9, 121.3, 25.1, 121.7])
   })
 })

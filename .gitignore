@@ -8,3 +8,6 @@ __pycache__/
 playwright-report/
 test-results/
 *.tsbuildinfo
+.tmp-lvr-inspect/
+.tmp-lvr-history/
+.tmp-admin-boundaries/

@@ -1,36 +1,49 @@
-import { ArrowRight, CalendarClock, Database, Gavel, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Database, GitCompareArrows, HousePlus, Link2, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PropertyCard } from '../components/PropertyCard'
+import { useCompare } from '../hooks/useCompare'
 import { useFavorites } from '../hooks/useFavorites'
-import { loadDataset } from '../services/data'
-import type { Dataset } from '../types/property'
+import { useUserListings } from '../hooks/useUserListings'
+import { loadCurrentDataset, loadDatasetManifest, loadSourceRegistry } from '../services/data'
+import type { Dataset, DatasetManifest } from '../types/property'
 
 export default function Dashboard() {
   const [dataset, setDataset] = useState<Dataset>()
-  const [error, setError] = useState('')
+  const [manifest, setManifest] = useState<DatasetManifest>()
+  const [generalSourceCount, setGeneralSourceCount] = useState(0)
+  const [secondaryError, setSecondaryError] = useState('')
+  const { listings } = useUserListings()
+  const { compareIds } = useCompare()
   const { favorites, toggle } = useFavorites()
-  useEffect(() => { loadDataset().then(setDataset).catch(error => setError(String(error))) }, [])
-  if (error) return <div className="state-panel error"><h1>資料暫時無法載入</h1><p>{error}</p></div>
-  if (!dataset) return <div className="state-panel"><span className="loader"/>正在載入官方資料…</div>
-  const upcoming = dataset.records.filter(item => item.listing_status === 'upcoming')
-  const completed = dataset.records.filter(item => item.final_price != null)
-  const sources = new Set(dataset.records.map(item => item.source_id)).size
-  const counties = new Set(dataset.records.map(item => item.county).filter(Boolean)).size
-  const totalValue = dataset.records.reduce((sum, item) => sum + (item.final_price ?? item.reserve_price ?? 0), 0)
+
+  useEffect(() => {
+    loadSourceRegistry().then(registry => setGeneralSourceCount(registry.sources.filter((source: { data_type: string[] }) => source.data_type.includes('一般房源')).length)).catch(() => setGeneralSourceCount(0))
+    Promise.all([loadCurrentDataset(), loadDatasetManifest()]).then(([current, index]) => { setDataset(current); setManifest(index) }).catch(error => setSecondaryError(String(error)))
+  }, [])
+
+  const upcoming = (dataset?.records ?? []).filter(item => item.listing_status === 'upcoming').sort((a, b) => (a.auction_date ?? '9999').localeCompare(b.auction_date ?? '9999'))
+  const selectedGeneralCount = compareIds.filter(id => listings.some(item => item.id === id)).length
+
   return <>
-    <section className="hero">
-      <div><span className="eyebrow accent">PUBLIC DATA · TRACEABLE SOURCES</span><h1>把散落的標售資訊，<br/><em>整理成決策視野。</em></h1><p>以可追溯的政府開放資料，統一整理標的、底價、日期與官方公告。沒有來源，就不下結論。</p><div className="hero-actions"><Link className="primary-button" to="/properties">探索標售物件<ArrowRight/></Link><Link className="text-link" to="/sources">查看資料透明度</Link></div></div>
-      <div className="hero-orbit"><div className="orbit core"><Gavel/></div><div className="orbit ring-one"/><div className="orbit ring-two"/><span className="orbit-label one">來源可追溯</span><span className="orbit-label two">欄位不推測</span><span className="orbit-label three">定期同步</span></div>
+    <section className="hero general-hero">
+      <div><span className="eyebrow accent">COMPARE HOMES · KEEP THE SOURCE</span><h1>跨網站整理房源，<br/><em>把比較放回中心。</em></h1><p>將不同房仲網站看到的候選物件放進同一個比較工作台，對照總價、單價、坪數、屋齡與格局，同時保留原始頁面供你查證。</p><div className="hero-actions"><Link className="primary-button" to="/general-listings">開始整理一般房源<ArrowRight/></Link><Link className="text-link" to="/compare">開啟比較表</Link></div></div>
+      <div className="hero-orbit"><div className="orbit core"><GitCompareArrows/></div><div className="orbit ring-one"/><div className="orbit ring-two"/><span className="orbit-label one">來源網址保留</span><span className="orbit-label two">資料存在本機</span><span className="orbit-label three">欄位並排比較</span></div>
     </section>
-    <section className="metrics">
-      <article><span><Database/></span><div><small>官方資料／來源</small><strong>{dataset.records.length.toLocaleString()} / {sources}</strong></div></article>
-      <article><span><CalendarClock/></span><div><small>待開標案件</small><strong>{upcoming.length.toLocaleString()}</strong></div></article>
-      <article><span><ShieldCheck/></span><div><small>已拍定歷史紀錄</small><strong>{completed.length.toLocaleString()}</strong></div></article>
-      <article><span>NT$</span><div><small>底價／拍定價合計</small><strong>{(totalValue / 100000000).toFixed(1)} 億</strong></div></article>
+    <section className="metrics general-metrics">
+      <article><span><HousePlus/></span><div><small>我的候選房源</small><strong>{listings.length}</strong></div></article>
+      <article><span><GitCompareArrows/></span><div><small>已選比較</small><strong>{selectedGeneralCount} / 4</strong></div></article>
+      <article><span><Link2/></span><div><small>一般房源官方入口</small><strong>{generalSourceCount || '—'}</strong></div></article>
+      <article><span><ShieldCheck/></span><div><small>授權自動接入</small><strong>0</strong></div></article>
     </section>
-    <section className="section-heading"><div><span className="eyebrow">UPCOMING AUCTIONS</span><h2>近期開標</h2><p>依官方資料所載開標日期排序</p></div><Link to="/properties">查看全部 <ArrowRight size={17}/></Link></section>
-    <div className="property-grid">{upcoming.slice(0, 6).map(item => <PropertyCard key={item.id} property={item} favorite={favorites.includes(item.id)} onFavorite={() => toggle(item.id)}/>)}</div>
-    <section className="data-banner"><div><Database/><span><strong>多來源資料快照</strong><small>產製時間 {new Date(dataset.generated_at).toLocaleString('zh-TW')} · {sources} 個已驗證官方來源 · 涵蓋 {counties} 縣市</small></span></div><Link to="/sources">檢視同步與限制 <ArrowRight size={17}/></Link></section>
+    <section className="section-heading"><div><span className="eyebrow">HOW IT WORKS</span><h2>三步建立你的比較清單</h2><p>不等待資料合作，也不使用未授權擷取</p></div></section>
+    <section className="comparison-steps">
+      <article><span>01</span><HousePlus/><h3>加入候選房源</h3><p>貼上原始網址，輸入價格、坪數與格局等主要條件。</p></article>
+      <article><span>02</span><GitCompareArrows/><h3>選擇最多四筆</h3><p>從不同來源挑選候選物件，加入同一張比較表。</p></article>
+      <article><span>03</span><ShieldCheck/><h3>回原站查證</h3><p>比較協助決策，物件狀態與內容仍以原始刊登為準。</p></article>
+    </section>
+    <section className="section-heading secondary-section"><div><span className="eyebrow">SECONDARY PUBLIC DATA MODULE</span><h2>政府標售與拍賣</h2><p>保留既有官方資料，但不再作為產品主軸</p></div><Link to="/properties">查看標售拍賣 <ArrowRight size={17}/></Link></section>
+    {secondaryError ? <div className="state-panel error"><p>政府資料模組暫時無法載入：{secondaryError}</p></div> : !dataset ? <div className="state-panel"><span className="loader"/>正在載入政府資料模組…</div> : <div className="property-grid">{upcoming.slice(0, 3).map(item => <PropertyCard key={item.id} property={item} favorite={favorites.includes(item.id)} onFavorite={() => toggle(item.id)}/>)}</div>}
+    {manifest && <section className="data-banner"><div><Database/><span><strong>政府公開資料模組</strong><small>{manifest.summary.records.toLocaleString()} 筆標售／拍賣紀錄 · 產製時間 {new Date(manifest.generated_at).toLocaleString('zh-TW')}</small></span></div><Link to="/sources">檢視資料來源 <ArrowRight size={17}/></Link></section>}
   </>
 }

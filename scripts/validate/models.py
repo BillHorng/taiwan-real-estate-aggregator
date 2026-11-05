@@ -62,3 +62,54 @@ class Property(BaseModel):
         if self.location_precision != "none" and not (has_latitude and has_longitude):
             raise ValueError("coordinates are required when location_precision is not none")
         return self
+
+class RealPriceRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    source_id: Literal["moi-lvr"]
+    source_url: HttpUrl
+    county: str
+    district: str
+    address: str | None
+    transaction_date: date
+    transaction_target: str
+    building_type: str | None
+    primary_use: str | None
+    total_price: float = Field(ge=0)
+    unit_price_sqm: float | None = Field(ge=0)
+    unit_price_ping: float | None = Field(ge=0)
+    building_area_ping: float | None = Field(ge=0)
+    land_area_ping: float | None = Field(ge=0)
+    building_age: float | None = Field(ge=0)
+    floor: str | None
+    total_floors: str | None
+    rooms: int | None = Field(ge=0)
+    halls: int | None = Field(ge=0)
+    bathrooms: int | None = Field(ge=0)
+    parking_type: str | None
+    parking_price: float | None = Field(ge=0)
+    notes: str | None
+    external_id: str
+
+class RealPriceTrendPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    season: str = Field(pattern=r"^\d{3}S[1-4]$")
+    label: str
+    county: str
+    district: str
+    building_type: str
+    count: int = Field(gt=0)
+    median_unit_price: float = Field(gt=0)
+    median_total_price: float = Field(ge=0)
+    min_unit_price: float = Field(gt=0)
+    max_unit_price: float = Field(gt=0)
+
+class AdminCentroid(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_id: Literal["nlsc-town-boundaries"]
+    town_code: str = Field(min_length=1)
+    county: str = Field(min_length=2)
+    district: str = Field(min_length=1)
+    latitude: float = Field(ge=10, le=27)
+    longitude: float = Field(ge=114, le=125)
+    location_precision: Literal["district"]

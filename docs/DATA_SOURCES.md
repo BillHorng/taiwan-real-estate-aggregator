@@ -56,8 +56,40 @@ The resource is not integrated yet: on 2026-11-04, the Fileset API returned only
 
 Only the ten rows explicitly marked `招標中` are treated as upcoming. Rows marked `再標售` are historical records without a verified future bid date and remain ended instead of being guessed active.
 
+## Integrated: MOI real-price registration dataset 25119
+
+- Dataset: 本期發布之不動產買賣實價登錄批次資料
+- Publisher: 內政部地政司
+- Registry: <https://data.gov.tw/dataset/25119>
+- Official CSV ZIP: `https://plvr.land.moi.gov.tw/opendata/lvr_landAcsv.zip`
+- License: 政府資料開放授權條款第 1 版; attribution is mandatory.
+- Official release schedule: each month on the 1st, 11th, and 21st.
+
+The connector reads the archive manifest and every county main CSV, skips the embedded English-label row, converts ROC dates and square metres, and validates records with a dedicated `RealPriceRecord` model. The generated `real-price.json` is intentionally separate from purchasable `Property` records: reported transaction price is historical evidence, not an asking price or available listing. The first verified local snapshot contains 8,838 records across 21 counties for the official period published on 2026-11-01.
+
+Historical trends use MOI dataset 18703, `非本期發布之實價批次資料`, also licensed under the Open Government Data License 1.0. The pipeline reads only the completed-building sale main files from each official quarterly archive. It does not commit the large source ZIPs or historical transaction rows. Instead, `real-price-history.json` contains validated aggregates at national, county, and district levels by building type. The current local series covers 2025 Q1 through 2026 Q3: approximately 542,000 valid sale rows were reduced to 9,562 trend points.
+
+## Integrated: NLSC township boundaries (dataset 7441)
+
+- Registry: <https://data.gov.tw/dataset/7441>
+- Publisher: 內政部國土測繪中心
+- Download: official `鄉鎮市區界線(TWD97經緯度).zip`
+- License: 政府資料開放授權條款第 1 版
+- Output: `public/data/admin-centroids.json` (368 administrative areas)
+- Map tiles: NLSC WMTS `EMAP` with optional `TOWN` overlay, requested directly by the browser and not bulk-cached
+
+The connector selects the nationwide TOWN shapefile (the archive also contains a one-record correction layer), computes polygon centroids, validates Taiwan coordinate bounds and writes only district-level representative points. These points are not property coordinates and are always labelled accordingly in the UI.
+
+Trend labels refer to the official **publication quarter**, not necessarily the transaction quarter. The yearly indicator is a sample-count-weighted average of quarterly medians and is explicitly not presented as an exact annual transaction median.
+
 ## Registry policy
 
 `public/data/source-registry.json` records researched candidates. `integrated` means a real connector produced and validated the committed snapshot. `official_link_only` means the project has no permission or reliable supported interface for automated ingestion. `research_required` is not a claim of permission.
 
 Source failure must not imply a sale or completed auction. FNP status derives only from the stop flag and published bid date; an elapsed date is labeled “ended”, not “sold”. Administrative Enforcement Agency rows include an explicit final price and are labeled completed results.
+
+## Private-market listing coverage
+
+The registry includes nine general-listing services: 591, 永慶房屋, 信義房屋, 台灣房屋, 住商不動產, 中信房屋, 東森房屋, 有巢氏房屋, and 太平洋房屋. None currently provides this project with a licensed API, download, or cooperation feed, so all nine are `official_link_only` and contribute zero records to the unified search.
+
+Official pages were rechecked on 2026-11-04. In particular, the current Taiwan Realty entry is `https://www.twhg.com.tw/`; the similarly named `taiwanhouse.com.tw` is not used. See `GENERAL_LISTING_ONBOARDING.md` for the evidence and validation required before a private source can be marked integrated.

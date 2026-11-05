@@ -47,10 +47,38 @@ def main() -> int:
         preview = "\n\n".join(errors[:10])
         raise ValueError(f"snapshot validation failed with {len(errors)} error(s):\n{preview}")
 
+    manifest_path = args.snapshot.with_name("property-manifest.json")
+    chunk_count = 0
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+        if manifest.get("summary", {}).get("records") != len(records):
+            raise ValueError("manifest total does not match snapshot records")
+        chunk_ids: set[str] = set()
+        public_root = manifest_path.parents[1]
+        for chunk in manifest.get("chunks", []):
+            chunk_path = public_root / chunk["path"]
+            chunk_payload = json.loads(chunk_path.read_text(encoding="utf-8-sig"))
+            chunk_records = chunk_payload.get("records")
+            if not isinstance(chunk_records, list) or len(chunk_records) != chunk["records"]:
+                raise ValueError(f"chunk count mismatch: {chunk_path}")
+            if any(record.get("source_id") != chunk["source_id"] for record in chunk_records):
+                raise ValueError(f"chunk source mismatch: {chunk_path}")
+            chunk_ids.update(record["id"] for record in chunk_records)
+            chunk_count += 1
+        if chunk_ids != ids:
+            raise ValueError("chunk IDs do not match full snapshot IDs")
+        current_path = public_root / manifest["current_path"]
+        current_payload = json.loads(current_path.read_text(encoding="utf-8-sig"))
+        current_ids = {record["id"] for record in current_payload.get("records", [])}
+        expected_current_ids = {record["id"] for record in records if record["listing_status"] != "ended"}
+        if current_ids != expected_current_ids:
+            raise ValueError("current chunk does not match non-ended snapshot records")
+
     print(json.dumps({
         "schema_version": payload.get("schema_version"),
         "records": len(records),
         "sources": dict(sorted(source_counts.items())),
+        "chunks": chunk_count,
     }, ensure_ascii=False))
     return 0
 

@@ -29,7 +29,11 @@ def test_failed_source_retains_previous_snapshot_and_records_health(tmp_path, mo
     assert update_data.main() == 0
     updated = json.loads(output.read_text(encoding="utf-8"))
     health = json.loads(status.read_text(encoding="utf-8"))
+    manifest = json.loads(output.with_name("property-manifest.json").read_text(encoding="utf-8"))
     assert len(updated["records"]) == 1
     assert health["overall"] == "stale"
     assert health["sources"]["test-source"]["status"] == "stale"
     assert "TimeoutError" in health["sources"]["test-source"]["error"]
+    assert manifest["summary"]["records"] == 1
+    assert manifest["chunks"][0]["source_id"] == "test-source"
+    assert output.with_name("properties").joinpath("current.json").exists()

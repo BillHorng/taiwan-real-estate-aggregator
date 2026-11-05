@@ -58,6 +58,63 @@ def previous_records(output: Path) -> list[dict]:
 def sanitize_error(error: Exception) -> str:
     return f"{type(error).__name__}: {error}"[:500]
 
+def write_chunked_dataset(output: Path, payload: dict) -> dict:
+    records = payload["records"]
+    chunk_dir = output.with_name("properties")
+    chunks: list[dict] = []
+    source_counts: dict[str, int] = {}
+
+    for source_id, _, _ in SOURCES:
+        source_records = [record for record in records if record["source_id"] == source_id]
+        if not source_records:
+            continue
+        filename = f"{source_id}.json"
+        chunk_payload = {
+            "schema_version": payload["schema_version"],
+            "generated_at": payload["generated_at"],
+            "source_attribution": payload["source_attribution"],
+            "records": source_records,
+        }
+        atomic_json(chunk_dir / filename, chunk_payload, compact=True)
+        current_count = sum(record["listing_status"] != "ended" for record in source_records)
+        chunks.append({
+            "source_id": source_id,
+            "path": f"data/properties/{filename}",
+            "records": len(source_records),
+            "current_records": current_count,
+            "ended_records": len(source_records) - current_count,
+        })
+        source_counts[source_id] = len(source_records)
+
+    current_records = [record for record in records if record["listing_status"] != "ended"]
+    current_payload = {
+        "schema_version": payload["schema_version"],
+        "generated_at": payload["generated_at"],
+        "source_attribution": payload["source_attribution"],
+        "records": current_records,
+    }
+    atomic_json(chunk_dir / "current.json", current_payload, compact=True)
+
+    statuses = {status: sum(record["listing_status"] == status for record in records) for status in ("upcoming", "ended", "suspended", "unknown")}
+    manifest = {
+        "schema_version": "1.0.0",
+        "dataset_schema_version": payload["schema_version"],
+        "generated_at": payload["generated_at"],
+        "source_attribution": payload["source_attribution"],
+        "current_path": "data/properties/current.json",
+        "summary": {
+            "records": len(records),
+            "statuses": statuses,
+            "with_final_price": sum(record.get("final_price") is not None for record in records),
+            "total_value": sum(record.get("final_price") or record.get("reserve_price") or 0 for record in records),
+            "counties": len({record["county"] for record in records if record.get("county")}),
+        },
+        "source_counts": source_counts,
+        "chunks": chunks,
+    }
+    atomic_json(output.with_name("property-manifest.json"), manifest)
+    return manifest
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, help="Saved object with fnp/fnp_results/moj/bot/taipei arrays")
@@ -104,8 +161,10 @@ def main() -> int:
     history = list(old_status.get("history", []))[-89:]
     history.append({"at":synced_at.isoformat(), "overall":overall, "records":len(valid), "sources":{key:value["status"] for key, value in source_status.items()}})
     status = {"schema_version":"1.0.0", "generated_at":synced_at.isoformat(), "overall":overall, "sources":source_status, "history":history}
-    atomic_json(args.output, payload, compact=True); atomic_json(status_output, status)
-    print(json.dumps({"records":len(valid), "sources_successful":success_count, "overall":overall, "output":str(args.output), "status_output":str(status_output)}, ensure_ascii=False))
+    atomic_json(args.output, payload, compact=True)
+    manifest = write_chunked_dataset(args.output, payload)
+    atomic_json(status_output, status)
+    print(json.dumps({"records":len(valid), "sources_successful":success_count, "chunks":len(manifest["chunks"]), "current_records":len([record for record in valid if record["listing_status"] != "ended"]), "overall":overall, "output":str(args.output), "status_output":str(status_output)}, ensure_ascii=False))
     return 0
 
 if __name__ == "__main__": raise SystemExit(main())

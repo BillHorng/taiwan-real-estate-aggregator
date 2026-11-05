@@ -1,0 +1,46 @@
+import { BarChart3, Building2, ExternalLink, Scale, TrendingUp } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useUserListings } from '../hooks/useUserListings'
+import { loadRealPriceDataset, loadRealPriceHistory } from '../services/data'
+import type { RealPriceDataset, RealPriceHistoryDataset } from '../types/property'
+import { annualTrend, emptyRealPriceFilters, filterRealPrice, realPriceSummary, trendForLocation, type RealPriceFilters } from '../utils/realPrice'
+import { formatCurrency, formatDate, formatPing } from '../utils/property'
+
+const PAGE_SIZE = 30
+
+export default function RealPriceAnalytics() {
+  const [dataset, setDataset] = useState<RealPriceDataset>()
+  const [history, setHistory] = useState<RealPriceHistoryDataset>()
+  const [error, setError] = useState('')
+  const [filters, setFilters] = useState<RealPriceFilters>(emptyRealPriceFilters)
+  const [page, setPage] = useState(1)
+  const { listings } = useUserListings()
+  useEffect(() => { Promise.all([loadRealPriceDataset(), loadRealPriceHistory()]).then(([current, historical]) => { setDataset(current); setHistory(historical) }).catch(reason => setError(reason instanceof Error ? reason.message : String(reason))) }, [])
+  const update = (key: keyof RealPriceFilters, value: string) => { setFilters(current => ({ ...current, [key]: value, ...(key === 'county' ? { district: '' } : {}) })); setPage(1) }
+  const counties = useMemo(() => [...new Set(dataset?.records.map(item => item.county) ?? [])].sort(), [dataset])
+  const districts = useMemo(() => [...new Set(dataset?.records.filter(item => !filters.county || item.county === filters.county).map(item => item.district) ?? [])].sort(), [dataset, filters.county])
+  const buildingTypes = useMemo(() => [...new Set(dataset?.records.map(item => item.building_type).filter((value): value is string => Boolean(value)) ?? [])].sort(), [dataset])
+  const results = useMemo(() => filterRealPrice(dataset?.records ?? [], filters).sort((a, b) => b.transaction_date.localeCompare(a.transaction_date)), [dataset, filters])
+  const summary = useMemo(() => realPriceSummary(results), [results])
+  const trend = useMemo(() => trendForLocation(history?.points ?? [], filters), [history, filters])
+  const annual = useMemo(() => annualTrend(trend), [trend])
+  const trendMaximum = Math.max(...trend.map(point => point.median_unit_price), 1)
+  const comparisons = useMemo(() => listings.filter(listing => listing.county && listing.district).map(listing => {
+    const nearby = filterRealPrice(dataset?.records ?? [], { ...emptyRealPriceFilters, county: listing.county ?? '', district: listing.district ?? '' })
+    const market = realPriceSummary(nearby).medianUnitPrice
+    return { listing, market, count: nearby.length, difference: market && listing.unit_price ? (listing.unit_price - market) / market : null }
+  }).filter(item => item.market != null), [dataset, listings])
+
+  if (error) return <div className="state-panel error"><h1>實價登錄載入失敗</h1><p>{error}</p></div>
+  if (!dataset || !history) return <div className="state-panel"><div className="loader"/><p>載入官方實價登錄資料…</p></div>
+  return <>
+    <section className="page-header"><span className="eyebrow accent">ACTUAL TRANSACTION ANALYTICS</span><h1>實價登錄成交行情</h1><p>以內政部本期買賣實價登錄分析實際成交價；不與一般房源開價、標售底價或拍定價格混用。</p></section>
+    <section className="real-price-disclosure"><Scale/><div><strong>資料期間與限制</strong><p>{dataset.period || '官方本期發布資料'}。批次資料為靜態快照，最新異動仍以官方查詢服務為準；中位數僅描述所選樣本，不是估價或成交保證。</p></div></section>
+    <section className="real-price-filters"><label>縣市<select value={filters.county} onChange={event => update('county', event.target.value)}><option value="">全台</option>{counties.map(value => <option key={value}>{value}</option>)}</select></label><label>行政區<select value={filters.district} onChange={event => update('district', event.target.value)}><option value="">全部</option>{districts.map(value => <option key={value}>{value}</option>)}</select></label><label>建物型態<select value={filters.buildingType} onChange={event => update('buildingType', event.target.value)}><option value="">全部</option>{buildingTypes.map(value => <option key={value}>{value}</option>)}</select></label><label>最小坪數<input type="number" min="0" value={filters.minArea} onChange={event => update('minArea', event.target.value)}/></label><label>最大坪數<input type="number" min="0" value={filters.maxArea} onChange={event => update('maxArea', event.target.value)}/></label><button onClick={() => { setFilters(emptyRealPriceFilters); setPage(1) }}>清除條件</button></section>
+    <section className="real-price-metrics"><article><BarChart3/><div><small>有效成交樣本</small><strong>{summary.count.toLocaleString()} 筆</strong></div></article><article><TrendingUp/><div><small>每坪成交中位數</small><strong>{formatCurrency(summary.medianUnitPrice)}</strong></div></article><article><Building2/><div><small>總價中位數</small><strong>{formatCurrency(summary.medianTotalPrice)}</strong></div></article><article><Scale/><div><small>每坪成交範圍</small><strong>{formatCurrency(summary.minUnitPrice)}–{formatCurrency(summary.maxUnitPrice)}</strong></div></article></section>
+    <section className="trend-panel"><div className="trend-heading"><div><span className="eyebrow">QUARTERLY TREND</span><h2>發布季度每坪成交中位數</h2><p>{filters.county || '全台'}{filters.district ? ` ${filters.district}` : ''} · {filters.buildingType || '全部建物型態'} · {history.seasons.length} 季</p></div><a href={history.source_url} target="_blank" rel="noopener noreferrer">歷史官方資料集 <ExternalLink size={14}/></a></div>{trend.length ? <><div className="trend-chart" role="img" aria-label="季度每坪成交中位數長條圖">{trend.map(point => <article key={point.season}><div className="trend-value">{Math.round(point.median_unit_price / 10_000).toLocaleString()} 萬</div><div className="trend-bar-track"><div className="trend-bar" style={{ height: `${Math.max(point.median_unit_price / trendMaximum * 100, 4)}%` }}/></div><strong>{point.label}</strong><small>{point.count.toLocaleString()} 筆</small></article>)}</div><div className="annual-trend">{annual.map(item => <article key={item.year}><small>{item.year} 年指標</small><strong>{formatCurrency(item.weightedQuarterMedian)}</strong><span>{item.quarters} 季、{item.count.toLocaleString()} 筆；季度中位數依樣本數加權，非年度精確中位數</span></article>)}</div></> : <div className="state-panel compact-state"><p>這組條件沒有跨期趨勢資料。</p></div>}</section>
+    {comparisons.length > 0 && <section><div className="section-heading compact"><div><span className="eyebrow">ASKING PRICE VS TRANSACTIONS</span><h2>我的房源與區域行情</h2><p>以相同縣市與行政區的本期有效建物交易比較每坪開價。</p></div></div><div className="market-comparison-grid">{comparisons.map(({ listing, market, count, difference }) => <article key={listing.id}><span className="source-pill">{listing.source_name}</span><h3>{listing.title}</h3><dl><div><dt>房源每坪開價</dt><dd>{formatCurrency(listing.unit_price)}</dd></div><div><dt>區域成交中位數</dt><dd>{formatCurrency(market)}</dd></div><div><dt>有效樣本</dt><dd>{count} 筆</dd></div></dl><strong className={difference != null && difference > 0 ? 'price-up' : 'price-down'}>{difference == null ? '缺少開價或坪數' : `開價較中位數${difference > 0 ? '高' : '低'} ${Math.abs(difference * 100).toFixed(1)}%`}</strong></article>)}</div></section>}
+    <div className="section-heading compact"><div><span className="eyebrow">RECENT TRANSACTIONS</span><h2>近期成交明細</h2><p>顯示 {results.length.toLocaleString()} 筆符合條件的建物交易。</p></div><a href="https://data.gov.tw/dataset/25119" target="_blank" rel="noopener noreferrer">官方資料集 <ExternalLink size={15}/></a></div>
+    {!results.length ? <div className="state-panel"><h2>沒有符合條件的成交資料</h2></div> : <><div className="real-price-table-wrap"><table className="real-price-table"><thead><tr><th>成交日期</th><th>地點</th><th>建物型態</th><th>總價</th><th>每坪成交價</th><th>建物坪數</th><th>屋齡／格局</th></tr></thead><tbody>{results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(item => <tr key={item.id}><td>{formatDate(item.transaction_date)}</td><td><strong>{item.county} {item.district}</strong><small>{item.address || '門牌未提供'}</small></td><td>{item.building_type || item.transaction_target}</td><td>{formatCurrency(item.total_price)}</td><td>{formatCurrency(item.unit_price_ping)}</td><td>{formatPing(item.building_area_ping)}</td><td>{item.building_age == null ? '屋齡未提供' : `${item.building_age} 年`}<small>{item.rooms == null ? '格局未提供' : `${item.rooms} 房 ${item.halls ?? '—'} 廳 ${item.bathrooms ?? '—'} 衛`}</small></td></tr>)}</tbody></table></div>{results.length > PAGE_SIZE && <div className="pagination"><button disabled={page === 1} onClick={() => setPage(value => value - 1)}>上一頁</button><span>第 {page} / {Math.ceil(results.length / PAGE_SIZE)} 頁</span><button disabled={page * PAGE_SIZE >= results.length} onClick={() => setPage(value => value + 1)}>下一頁</button></div>}</>}
+  </>
+}

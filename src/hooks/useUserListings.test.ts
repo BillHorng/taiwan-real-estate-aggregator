@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Property } from '../types/property'
-import { applyListingRefresh, propertyToInput } from './useUserListings'
+import { applyListingRefresh, listingCompleteness, propertyToInput } from './useUserListings'
 
 const current = {
   id:'one', source_url:'https://example.com/one', source_name:'來源', title:'房源', property_category:'building', building_type:'住宅大樓',
@@ -22,5 +22,14 @@ describe('general listing snapshot refresh', () => {
     const { records, result } = applyListingRefresh([current], [])
     expect(result.missingUnchanged).toBe(1)
     expect(records[0].listing_status).toBe('unknown')
+  })
+})
+
+describe('general listing completeness', () => {
+  it('uses land area instead of building area for land listings', () => {
+    const base = propertyToInput(current)
+    const withLandArea = { ...base, property_category:'land' as const, building_area_ping:null, land_area_ping:20 }
+    const buildingAreaOnly = { ...base, property_category:'land' as const, building_area_ping:20, land_area_ping:null }
+    expect(listingCompleteness(withLandArea)).toBeGreaterThan(listingCompleteness(buildingAreaOnly))
   })
 })

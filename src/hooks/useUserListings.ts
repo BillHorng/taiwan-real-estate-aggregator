@@ -85,9 +85,10 @@ function assertUniqueUrl(listings: Property[], sourceUrl: string, exceptId?: str
 }
 
 export function listingCompleteness(input: UserListingInput | Property) {
-  const fields = ['source_name', 'source_url', 'title', 'county', 'district', 'property_category', 'building_type', 'total_price', 'building_area_ping', 'building_age', 'floor', 'rooms', 'bathrooms', 'parking'] as const
-  const filled = fields.filter(key => input[key] !== null && input[key] !== '' && input[key] !== undefined).length
-  return Math.round(filled / fields.length * 100)
+  const commonFields = ['source_name', 'source_url', 'title', 'county', 'district', 'property_category', 'building_type', 'total_price', 'building_age', 'floor', 'rooms', 'bathrooms', 'parking'] as const
+  const area = input.property_category === 'land' ? input.land_area_ping : input.building_area_ping
+  const filled = commonFields.filter(key => input[key] !== null && input[key] !== '' && input[key] !== undefined).length + Number(area !== null && area !== undefined)
+  return Math.round(filled / (commonFields.length + 1) * 100)
 }
 
 export function propertyToInput(item: Property): UserListingInput {

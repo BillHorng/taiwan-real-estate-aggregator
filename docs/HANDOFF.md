@@ -1,6 +1,6 @@
 # Taiwan Real Estate Aggregator 交接手冊
 
-- 最後更新：2026-11-05
+- 最後更新：2026-11-07
 - 交接基準：`main` / `v1.2.0` 發布批次
 - Repository：<https://github.com/BillHorng/taiwan-real-estate-aggregator>
 - Production：<https://billhorng.github.io/taiwan-real-estate-aggregator/>
@@ -31,7 +31,7 @@
 | 已整合資料來源 | 7 個（5 個標售／拍賣、實價登錄、行政區界線） |
 | 額外資料 | 本期實價 8,838 筆、歷史趨勢 15,122 點（11 季）、行政區代表座標 368 筆 |
 | Python tests | 27 項 |
-| Frontend tests | 44 項 + Playwright E2E 12 項 |
+| Frontend tests | 45 項 + Playwright E2E 12 項 |
 
 以上筆數是 2026-11-04 快照，不是固定契約。正式數量應以 `public/data/properties.json` 與 `public/data/sync-status.json` 為準。
 
@@ -168,9 +168,12 @@ npm run preview
 
 ```bash
 python scripts/validate_snapshot.py
+python scripts/validate_real_price.py
+python scripts/validate_admin_centroids.py
 python -m pytest -q
 npm run typecheck
 npm test
+npm run test:e2e
 npm run build
 ```
 
@@ -180,8 +183,8 @@ npm run build
 - Real-price validation：8,838 筆本期明細、11 季、15,122 個趨勢點
 - Admin-centroid validation：368 個行政區、22 縣市
 - pytest：27 passed
-- Vitest：44 passed
-- Playwright：桌面／手機 Chromium 8 passed
+- Vitest：45 passed
+- Playwright：桌面／手機 Chromium 12 passed
 - TypeScript：無錯誤
 - Vite production build：成功
 
@@ -207,13 +210,13 @@ python scripts/validate_snapshot.py
 ### `deploy.yml`
 
 - 觸發：push 到 `main` 或手動執行。
-- 流程：snapshot validation → npm install → Vitest → TypeScript/build → Pages artifact → deploy。
+- 流程：snapshot validation → npm install → Vitest → Playwright 桌面／手機 E2E → TypeScript/build（注入 Google Maps browser key）→ Pages artifact → deploy。
 - Concurrency group：`pages`，新部署會取消舊部署。
 
 ### `update-data.yml`
 
 - 排程：UTC 每週一、四 20:23；台北時間為每週二、五 04:23。
-- 流程：pytest → 五來源同步 → snapshot validation → 前端測試/build → commit 新快照 → Pages deploy。
+- 流程：pytest → 五來源同步 → snapshot／實價／行政區驗證 → Vitest → TypeScript/build（注入 Google Maps browser key）→ commit 新快照 → Pages deploy。排程不重跑瀏覽器 E2E。
 - Concurrency group：`data-update`，不會因 Pages 工作互相取消。
 - 權限：需要 `contents: write` 才能提交資料快照。
 
@@ -275,6 +278,12 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 - 查看 `actions/configure-pages`、artifact upload 及 deploy job。
 - 確認 `dist/index.html` 存在且 Vite `base` 仍為 `./`。
 
+### Windows 本機 E2E 結束後未退出
+
+- 專案與 GitHub Actions 的支援基準是 Node.js 22；先切回 Node.js 22 再重跑 `npm run test:e2e`。
+- Node.js 26／Windows 若 12 個測試皆完成但 Playwright 卡在關閉自建 Vite 伺服器，可先執行 `npm run dev -- --host 127.0.0.1 --port 4177`，再於另一個 PowerShell 執行 `npx playwright test --workers=1`；測試完成後手動停止開發伺服器。
+- 不可只依個別測試的成功標記判定整個命令通過；必須確認 Playwright 回傳 exit code 0。
+
 ### 中文亂碼
 
 - 原始碼與 JSON 都使用 UTF-8。
@@ -283,7 +292,7 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 
 ## 14. 安全與憑證
 
-- 專案目前不需要 API token。
+- Google Maps 需要瀏覽器端 API Key；本機使用 `.env.local`，GitHub Pages 使用 `GOOGLE_MAPS_API_KEY` Actions secret。瀏覽器金鑰會進入公開 bundle，必須限制 HTTP referrer 與 Maps JavaScript API。
 - 不得把 GitHub token、密碼、私鑰或 `.env` 提交到 Repository。
 - 只有可公開的 `VITE_*` 設定才能進入前端；任何 `VITE_*` 值都會被打包給瀏覽器。
 - 外部 URL 必須來自可信來源，前端連結使用 `noopener noreferrer`。
@@ -294,7 +303,7 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 優先順序建議：
 
 1. **取得第一個一般房源授權 feed（外部授權阻塞）**：本機工作樹已完成接入工具，但真實自動接入仍為 0。這一項不能只靠程式完成；必須由資料提供方提供合作 API、正式 JSON／CSV 與再利用授權，不能改用未授權爬蟲。阻塞期間不妨礙其他模組開發。
-2. **確認本次 GitHub Actions**：本批次推送 `main` 後會觸發 Pages workflow；必須以 Actions 結果及正式網址實測為準。本次不建立新 tag 或 Release。
+2. **確認本次 GitHub Actions**：本批次推送 `main` 後會觸發 Pages workflow；必須以 Actions 結果及正式網址實測為準。本次建立 `v1.2.0` tag，但不建立 GitHub Release 頁面。
 3. **跨裝置保存**：目前一般房源只存在瀏覽器；若需要帳號同步，必須另行設計身分驗證、資料庫、個資告知與刪除流程。
 4. **搜尋效能**：政府完整搜尋仍需載入全部來源分檔；資料量增加後，將篩選運算移至 Web Worker，或建立依縣市／狀態拆分的輕量索引。
 5. **現行法拍來源**：持續監看司法院 dataset 22892 是否恢復正式下載端點，不得改用未授權爬蟲。
@@ -304,7 +313,7 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 ## 16. 交接完成檢查表
 
 - [ ] 能從 `main` 執行 `npm ci` 與 `pip install -r requirements.txt`
-- [ ] 五項驗證命令全部通過
+- [ ] 第 8 節全部驗證命令通過
 - [ ] 理解 `integrated`、`official_link_only`、`research_required` 的差異
 - [ ] 理解同步失敗時不得清空舊資料
 - [ ] 能手動執行兩個 GitHub Actions workflows
@@ -312,7 +321,7 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 - [ ] 新來源已確認官方授權、實際端點及可取得欄位
 - [ ] 未提交任何憑證、照片或未授權文案
 
-## 17. 與原始需求的差距稽核（2026-11-05）
+## 17. 與原始需求的差距稽核（2026-11-07）
 
 ### 17.1 整體判定
 
@@ -347,7 +356,7 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 - 法院法拍、行政執行拍賣及金拍屋專頁；無可用 feed 時顯示 0 筆、限制與官方入口，不展示假資料。
 - 授權合作 feed 的 permission manifest 與欄位權利驗證工具。
 - CSP、外部連結安全屬性及一般房源 HTTP(S) 網址驗證。
-- 本階段共有 27 項 Python、44 項前端單元測試及 12 項 Playwright E2E 通過；TypeScript、production build、地圖資料與本機 HTTP 預覽驗證通過。Google Maps 真實圖面仍需設定有效且受限制的 API Key 後再執行線上驗證。
+- 本階段共有 27 項 Python、45 項前端單元測試及 12 項 Playwright E2E 通過；TypeScript、production build、地圖資料與本機 HTTP 預覽驗證通過。Google Maps 真實圖面仍需設定有效且受限制的 API Key 後再執行線上驗證。
 
 ### 17.3 尚未完成或未進行
 
@@ -427,13 +436,13 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 
 ### 17.5 `v1.2.0` 發布內容與狀態
 
-- 2026-11-05 `v1.2.0` 批次統一發布至 `main`，並建立同名 Git tag；不建立 GitHub Release 頁面。
+- 2026-11-07 `v1.2.0` 批次統一發布至 `main`，並建立同名 Git tag；不建立 GitHub Release 頁面。
 - 本版新增一般房源進階欄位、完整組合篩選、跨來源疑似重複候選、CSV 快照更新、改價歷史、人工刊登狀態及本機保存搜尋。
 - 政府資料搜尋補齊單價、面積、屋齡、樓層、格局、機關、拍次、日期、保證金、點交、持分與使用分區等條件。
 - 實價歷史擴充為 2024 Q1 至 2026 Q3 共 11 季，並增加一般房源相似成交候選。
 - 地圖由 Leaflet 改為 Google Maps JavaScript API；正式圖面須在 Repository Actions secret 設定 `GOOGLE_MAPS_API_KEY`，且金鑰必須限制 HTTP referrer 與 Maps JavaScript API。缺少金鑰時頁面會顯示設定指引並保留房源清單。
 - 新增法院法拍、行政執行拍賣與金拍屋分類頁，未接入來源維持 0 筆與官方連結模式。
-- 發布前驗證：27 項 Python、44 項前端單元、12 項桌面／手機 Playwright E2E、TypeScript、production build、資料 schema、主要路由與 npm 安全稽核均通過。
+- 發布前驗證：27 項 Python、45 項前端單元、12 項桌面／手機 Playwright E2E、TypeScript、production build、資料 schema、主要路由與 npm 安全稽核均通過。
 - 推送會觸發 GitHub Pages workflow；正式部署結果仍應以 GitHub Actions 與 production URL 為準。
 - 本節不保存易失真的未提交檔案數；實際狀態一律以 `git status`、`git log`、tag 及 GitHub Actions 為準。
 

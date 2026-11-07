@@ -272,6 +272,11 @@ https://billhorng.github.io/taiwan-real-estate-aggregator/data/sync-status.json
 - 在正式網路重跑 `scripts/update_data.py`。
 - 若仍失敗，保留既有 snapshot，停止部署空資料。
 
+### Python 測試找不到 `scripts`
+
+- 必須在 Repository 根目錄執行測試，並優先使用 `python -m pytest -q`。
+- `pytest.ini` 已將專案根目錄加入 Python import path；若仍出現 `ModuleNotFoundError: scripts`，先確認目前目錄與虛擬環境，再重新安裝 `requirements.txt`。
+
 ### GitHub Pages 失敗
 
 - 確認 Settings → Pages 的 Source 是 GitHub Actions。

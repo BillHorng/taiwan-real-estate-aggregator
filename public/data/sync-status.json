@@ -1,46 +1,46 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-11-04T02:43:23.887435+00:00",
-  "overall": "healthy",
+  "generated_at": "2026-11-10T02:48:51.696143+00:00",
+  "overall": "degraded",
   "sources": {
     "fnp-9655": {
       "status": "success",
-      "records": 450,
-      "attempted_at": "2026-11-04T02:43:23.887435+00:00",
-      "last_success_at": "2026-11-04T02:43:23.887435+00:00",
-      "duration_ms": 490,
+      "records": 412,
+      "attempted_at": "2026-11-10T02:48:51.696143+00:00",
+      "last_success_at": "2026-11-10T02:48:51.696143+00:00",
+      "duration_ms": 2044,
       "error": null
     },
     "fnp-results-13144": {
       "status": "success",
-      "records": 13335,
-      "attempted_at": "2026-11-04T02:43:23.887435+00:00",
-      "last_success_at": "2026-11-04T02:43:23.887435+00:00",
-      "duration_ms": 2780,
+      "records": 13365,
+      "attempted_at": "2026-11-10T02:48:51.696143+00:00",
+      "last_success_at": "2026-11-10T02:48:51.696143+00:00",
+      "duration_ms": 11846,
       "error": null
     },
     "moj-enforcement-177351": {
-      "status": "success",
+      "status": "stale",
       "records": 2319,
-      "attempted_at": "2026-11-04T02:43:23.887435+00:00",
+      "attempted_at": "2026-11-10T02:48:51.696143+00:00",
       "last_success_at": "2026-11-04T02:43:23.887435+00:00",
-      "duration_ms": 14885,
-      "error": null
+      "duration_ms": 90355,
+      "error": "URLError: <urlopen error [Errno 101] Network is unreachable>"
     },
     "bot-37335": {
-      "status": "success",
+      "status": "stale",
       "records": 1,
-      "attempted_at": "2026-11-04T02:43:23.887435+00:00",
+      "attempted_at": "2026-11-10T02:48:51.696143+00:00",
       "last_success_at": "2026-11-04T02:43:23.887435+00:00",
-      "duration_ms": 624,
-      "error": null
+      "duration_ms": 17350,
+      "error": "URLError: <urlopen error [Errno 111] Connection refused>"
     },
     "taipei-finance-121364": {
       "status": "success",
       "records": 270,
-      "attempted_at": "2026-11-04T02:43:23.887435+00:00",
-      "last_success_at": "2026-11-04T02:43:23.887435+00:00",
-      "duration_ms": 21451,
+      "attempted_at": "2026-11-10T02:48:51.696143+00:00",
+      "last_success_at": "2026-11-10T02:48:51.696143+00:00",
+      "duration_ms": 1216,
       "error": null
     }
   },
@@ -99,6 +99,18 @@
         "fnp-results-13144": "success",
         "moj-enforcement-177351": "success",
         "bot-37335": "success",
+        "taipei-finance-121364": "success"
+      }
+    },
+    {
+      "at": "2026-11-10T02:48:51.696143+00:00",
+      "overall": "degraded",
+      "records": 16367,
+      "sources": {
+        "fnp-9655": "success",
+        "fnp-results-13144": "success",
+        "moj-enforcement-177351": "stale",
+        "bot-37335": "stale",
         "taipei-finance-121364": "success"
       }
     }

@@ -1,24 +1,24 @@
 {
   "schema_version": "1.0.0",
   "dataset_schema_version": "2.3.0",
-  "generated_at": "2026-11-04T02:43:23.887435+00:00",
+  "generated_at": "2026-11-10T02:48:51.696143+00:00",
   "source_attribution": "財政部國有財產署、法務部行政執行署、臺灣銀行、臺北市政府財政局（政府資料開放授權條款第1版）",
   "current_path": "data/properties/current.json",
   "summary": {
-    "records": 16375,
+    "records": 16367,
     "statuses": {
-      "upcoming": 417,
-      "ended": 15955,
+      "upcoming": 422,
+      "ended": 15942,
       "suspended": 0,
       "unknown": 3
     },
-    "with_final_price": 4241,
-    "total_value": 286007648908.0,
+    "with_final_price": 4242,
+    "total_value": 285609548048.0,
     "counties": 22
   },
   "source_counts": {
-    "fnp-9655": 450,
-    "fnp-results-13144": 13335,
+    "fnp-9655": 412,
+    "fnp-results-13144": 13365,
     "moj-enforcement-177351": 2319,
     "bot-37335": 1,
     "taipei-finance-121364": 270
@@ -27,16 +27,16 @@
     {
       "source_id": "fnp-9655",
       "path": "data/properties/fnp-9655.json",
-      "records": 450,
-      "current_records": 407,
-      "ended_records": 43
+      "records": 412,
+      "current_records": 412,
+      "ended_records": 0
     },
     {
       "source_id": "fnp-results-13144",
       "path": "data/properties/fnp-results-13144.json",
-      "records": 13335,
+      "records": 13365,
       "current_records": 0,
-      "ended_records": 13335
+      "ended_records": 13365
     },
     {
       "source_id": "moj-enforcement-177351",
